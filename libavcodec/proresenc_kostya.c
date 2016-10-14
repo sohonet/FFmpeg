@@ -937,7 +937,7 @@ static int encode_frame(AVCodecContext *avctx, AVPacket *pkt,
     int sizes[4] = { 0 };
     int slice_hdr_size = 2 + 2 * (ctx->num_planes - 1);
     int frame_size, picture_size, slice_size;
-    int pkt_size, ret;
+    int pkt_size, ret, pad;
     int max_slice_size = (ctx->frame_size_upper_bound - 200) / (ctx->pictures_per_frame * ctx->slices_per_picture + 1);
     uint8_t frame_flags;
 
@@ -1078,6 +1078,11 @@ static int encode_frame(AVCodecContext *avctx, AVPacket *pkt,
 
     orig_buf -= 8;
     frame_size = buf - orig_buf;
+    pad = FFALIGN(frame_size, 16) - frame_size;
+    frame_size += pad;
+    while (pad--) {
+        bytestream_put_byte  (&buf, 0);
+    }
     bytestream_put_be32(&orig_buf, frame_size);
 
     pkt->size   = frame_size;
