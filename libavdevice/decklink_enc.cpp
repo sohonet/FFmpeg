@@ -88,7 +88,7 @@ public:
     virtual ULONG   STDMETHODCALLTYPE Release(void)                           { return 1; }
 };
 
-static int decklink_setup_video(AVFormatContext *avctx, AVStream *st)
+static int decklink_setup_video(AVFormatContext *avctx, AVStream *st, int mode_num)
 {
     struct decklink_cctx *cctx = (struct decklink_cctx *)avctx->priv_data;
     struct decklink_ctx *ctx = (struct decklink_ctx *)cctx->ctx;
@@ -104,11 +104,21 @@ static int decklink_setup_video(AVFormatContext *avctx, AVStream *st)
                " Only AV_PIX_FMT_UYVY422 is supported.\n");
         return -1;
     }
-    if (ff_decklink_set_format(avctx, c->width, c->height,
-                            c->time_base.num, c->time_base.den)) {
-        av_log(avctx, AV_LOG_ERROR, "Unsupported video size or framerate!"
-               " Check available formats with -list_formats 1.\n");
-        return -1;
+
+    if (mode_num) {
+	    if (ff_decklink_set_format(avctx, c->width, c->height,
+				    c->time_base.num, c->time_base.den, DIRECTION_OUT, mode_num)) {
+		av_log(avctx, AV_LOG_ERROR, "Unsupported video size or framerate!"
+		       " Check available formats with -list_formats 1.\n");
+		return -1;
+	    }
+    } else {
+	    if (ff_decklink_set_format(avctx, c->width, c->height,
+				    c->time_base.num, c->time_base.den)) {
+		av_log(avctx, AV_LOG_ERROR, "Unsupported video size or framerate!"
+		       " Check available formats with -list_formats 1.\n");
+		return -1;
+	    }
     }
     if (ctx->dlo->EnableVideoOutput(ctx->bmd_mode,
                                     bmdVideoOutputFlagDefault) != S_OK) {
@@ -313,6 +323,9 @@ av_cold int ff_decklink_write_header(AVFormatContext *avctx)
     struct decklink_cctx *cctx = (struct decklink_cctx *)avctx->priv_data;
     struct decklink_ctx *ctx;
     unsigned int n;
+    char fname[1024];
+    char *tmp;
+    int mode_num = 0;
     int ret;
 
     ctx = (struct decklink_ctx *) av_mallocz(sizeof(struct decklink_ctx));
@@ -329,7 +342,14 @@ av_cold int ff_decklink_write_header(AVFormatContext *avctx)
         return AVERROR_EXIT;
     }
 
-    ret = ff_decklink_init_device(avctx, avctx->filename);
+    strcpy (fname, avctx->filename);
+    tmp = strchr (fname, '@');
+    if (tmp != NULL) {
+        mode_num = atoi (tmp+1);
+        *tmp = 0;
+    }
+
+    ret = ff_decklink_init_device(avctx, fname);
     if (ret < 0)
         return ret;
 
@@ -340,6 +360,10 @@ av_cold int ff_decklink_write_header(AVFormatContext *avctx)
         ret = AVERROR(EIO);
         goto error;
     }
+
+    /* set psf mode */
+    av_log(avctx, AV_LOG_WARNING, "forcing PsF mode to: %d\n", cctx->force_psf);
+    ctx->cfg->SetFlag(bmdDeckLinkConfigUse1080pNotPsF, cctx->force_psf ? false:true);
 
     /* List supported formats. */
     if (ctx->list_formats) {
@@ -357,7 +381,7 @@ av_cold int ff_decklink_write_header(AVFormatContext *avctx)
             if (decklink_setup_audio(avctx, st))
                 goto error;
         } else if (c->codec_type == AVMEDIA_TYPE_VIDEO) {
-            if (decklink_setup_video(avctx, st))
+            if (decklink_setup_video(avctx, st, mode_num))
                 goto error;
         } else {
             av_log(avctx, AV_LOG_ERROR, "Unsupported stream type.\n");

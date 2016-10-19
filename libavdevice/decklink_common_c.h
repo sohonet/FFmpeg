@@ -46,6 +46,7 @@ struct decklink_cctx {
     DecklinkPtsSource video_pts_source;
     int audio_input;
     int video_input;
+    int force_psf;
 };
 
 #endif /* AVDEVICE_DECKLINK_COMMON_C_H */

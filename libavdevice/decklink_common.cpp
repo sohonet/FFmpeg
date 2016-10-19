@@ -192,7 +192,7 @@ int ff_decklink_set_format(AVFormatContext *avctx,
         AVRational mode_tb = av_make_q(bmd_tb_num, bmd_tb_den);
 
         if ((bmd_width == width && bmd_height == height &&
-            !av_cmp_q(mode_tb, target_tb)) || i == num) {
+            !av_cmp_q(mode_tb, target_tb) && num == 0) || i == num) {
             ctx->bmd_mode   = mode->GetDisplayMode();
             ctx->bmd_width  = bmd_width;
             ctx->bmd_height = bmd_height;
