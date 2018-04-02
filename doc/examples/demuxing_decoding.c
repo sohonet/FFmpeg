@@ -93,10 +93,9 @@ static int decode_packet(int *got_frame, int cached)
                 return -1;
             }
 
-            printf("video_frame%s n:%d coded_n:%d pts:%s\n",
+            printf("video_frame%s n:%d coded_n:%d\n",
                    cached ? "(cached)" : "",
-                   video_frame_count++, frame->coded_picture_number,
-                   av_ts2timestr(frame->pts, &video_dec_ctx->time_base));
+                   video_frame_count++, frame->coded_picture_number);
 
             /* copy decoded frame to destination buffer:
              * this is required since rawvideo expects non aligned data */
@@ -252,9 +251,6 @@ int main (int argc, char **argv)
     src_filename = argv[1];
     video_dst_filename = argv[2];
     audio_dst_filename = argv[3];
-
-    /* register all formats and codecs */
-    av_register_all();
 
     /* open input file, and allocate format context */
     if (avformat_open_input(&fmt_ctx, src_filename, NULL, NULL) < 0) {
